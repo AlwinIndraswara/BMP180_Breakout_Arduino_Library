@@ -22,28 +22,27 @@
 #include <stdio.h>
 #include <math.h>
 
-
-SFE_BMP180::SFE_BMP180()
-// Base library type
-{
+// base type constructor for I2C - we indicate sda and sdc
+SFE_BMP180::SFE_BMP180(int sda, int sdc){
+  mySda = sda;
+  mySdc = sdc;
 }
-
 
 char SFE_BMP180::begin()
 // Initialize library for subsequent pressure measurements
 {
 	double c3,c4,b1;
-	
+
 	// Start up the Arduino's "wire" (I2C) library:
-	
-	Wire.begin();
+
+	Wire.begin(mySda, mySdc);
 
 	// The BMP180 includes factory calibration data stored on the device.
 	// Each device has different numbers, these must be retrieved and
 	// used in the calculations when taking pressure measurements.
 
 	// Retrieve calibration data from device:
-	
+
 	if (readInt(0xAA,AC1) &&
 		readInt(0xAC,AC2) &&
 		readInt(0xAE,AC3) &&
@@ -84,7 +83,7 @@ char SFE_BMP180::begin()
 		Serial.print("MC: "); Serial.println(MC);
 		Serial.print("MD: "); Serial.println(MD);
 		*/
-		
+
 		// Compute floating-point polynominals:
 
 		c3 = 160.0 * pow(2,-15) * AC3;
@@ -123,7 +122,7 @@ char SFE_BMP180::begin()
 		Serial.print("p1: "); Serial.println(p1);
 		Serial.print("p2: "); Serial.println(p2);
 		*/
-		
+
 		// Success!
 		return(1);
 	}
@@ -202,7 +201,7 @@ char SFE_BMP180::writeBytes(unsigned char *values, char length)
 // length: number of bytes to write
 {
 	char x;
-	
+
 	Wire.beginTransmission(BMP180_ADDR);
 	Wire.write(values,length);
 	_error = Wire.endTransmission();
@@ -218,7 +217,7 @@ char SFE_BMP180::startTemperature(void)
 // Will return delay in ms to wait, or 0 if I2C error
 {
 	unsigned char data[2], result;
-	
+
 	data[0] = BMP180_REG_CONTROL;
 	data[1] = BMP180_COMMAND_TEMPERATURE;
 	result = writeBytes(data, 2);
@@ -239,7 +238,7 @@ char SFE_BMP180::getTemperature(double &T)
 	unsigned char data[2];
 	char result;
 	double tu, a;
-	
+
 	data[0] = BMP180_REG_RESULT;
 
 	result = readBytes(data, 2);
@@ -252,11 +251,11 @@ char SFE_BMP180::getTemperature(double &T)
 
 		//example from http://wmrx00.sourceforge.net/Arduino/BMP085-Calcs.pdf
 		//tu = 0x69EC;
-		
+
 		a = c5 * (tu - c6);
 		T = a + (mc / (a + md));
 
-		/*		
+		/*
 		Serial.println();
 		Serial.print("tu: "); Serial.println(tu);
 		Serial.print("a: "); Serial.println(a);
@@ -273,7 +272,7 @@ char SFE_BMP180::startPressure(char oversampling)
 // Will return delay in ms to wait, or 0 if I2C error.
 {
 	unsigned char data[2], result, delay;
-	
+
 	data[0] = BMP180_REG_CONTROL;
 
 	switch (oversampling)
@@ -322,7 +321,7 @@ char SFE_BMP180::getPressure(double &P, double &T)
 	unsigned char data[3];
 	char result;
 	double pu,s,x,y,z;
-	
+
 	data[0] = BMP180_REG_RESULT;
 
 	result = readBytes(data, 3);
@@ -333,9 +332,9 @@ char SFE_BMP180::getPressure(double &P, double &T)
 		//example from Bosch datasheet
 		//pu = 23843;
 
-		//example from http://wmrx00.sourceforge.net/Arduino/BMP085-Calcs.pdf, pu = 0x982FC0;	
+		//example from http://wmrx00.sourceforge.net/Arduino/BMP085-Calcs.pdf, pu = 0x982FC0;
 		//pu = (0x98 * 256.0) + 0x2F + (0xC0/256.0);
-		
+
 		s = T - 25.0;
 		x = (x2 * pow(s,2)) + (x1 * s) + x0;
 		y = (y2 * pow(s,2)) + (y1 * s) + y0;
@@ -376,7 +375,7 @@ double SFE_BMP180::altitude(double P, double P0)
 
 char SFE_BMP180::getError(void)
 	// If any library command fails, you can retrieve an extended
-	// error code using this command. Errors are from the wire library: 
+	// error code using this command. Errors are from the wire library:
 	// 0 = Success
 	// 1 = Data too long to fit in transmit buffer
 	// 2 = Received NACK on transmit of address
